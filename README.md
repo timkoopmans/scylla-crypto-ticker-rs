@@ -1,6 +1,6 @@
 # ScyllaDB demo with Binance L2 Order Books
 
-This is a demo of ScyllaDB with Binance L2 Order Books. 
+This is a demo of ScyllaDB with [Binance L2 Order Books](https://www.binance.com/en/support/faq/understanding-order-book-and-market-depth-da311403b10347f09ff783a2525c8aa6). 
 It is a simple binary that charts bid or ask price depth for a given pair.
 
 ## Example Output
