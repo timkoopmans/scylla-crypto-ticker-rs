@@ -3,6 +3,12 @@
 This is a demo of ScyllaDB with Binance L2 Order Books. 
 It is a simple binary that charts bid or ask price depth for a given pair.
 
+## Example Output
+
+    cargo run -p scylladb-order-book-rs btc usdt
+
+![img.png](img.png)
+
 ## Usage
 
 To build:
@@ -28,12 +34,6 @@ To reset the database
 To destroy the database
 
     make down
-
-## Example Output
-
-    cargo run -p scylladb-order-book-rs btc usdt
-
-![img.png](img.png)
 
 ## Dependencies
 
