@@ -7,8 +7,8 @@ pub async fn write_prices(session: &Session, side: &str) -> anyhow::Result<Prepa
     session
         .prepare(format!(
             "INSERT INTO orders.{} \
-        (timestamp, exchange, base, quote, price) \
-        VALUES (?, ?, ?, ?, ?)",
+        (timestamp, exchange, base, quote, price, amount) \
+        VALUES (?, ?, ?, ?, ?, ?)",
             side
         ))
         .await

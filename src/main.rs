@@ -9,6 +9,7 @@ use barter_data::{
 };
 use barter_integration::model::instrument::kind::InstrumentKind;
 use structopt::StructOpt;
+use tracing::info;
 use db::{connection, queries};
 use util::{charts, parsers};
 
@@ -29,7 +30,7 @@ async fn main() -> Result<()> {
     let opt = Opt::from_args();
 
     let writer = connection::builder().await?;
-    let _insert_bids = queries::write_prices(&writer, "bids").await?;
+    let insert_bids = queries::write_prices(&writer, "bids").await?;
     let insert_asks = queries::write_prices(&writer, "asks").await?;
 
     let mut streams = Streams::<OrderBooksL2>::builder()
@@ -62,13 +63,14 @@ async fn main() -> Result<()> {
     });
 
     while let Some(order_book) = binance_stream.recv().await {
+        // Process asks
         let asks = format!("{:?}", order_book.kind.asks);
         let levels_start = asks.find("levels: [").unwrap() + "levels: [".len();
         let levels_end = asks.rfind(']').unwrap();
         let levels_str = &asks[levels_start..levels_end];
-        let ask_prices = parsers::extract_prices(levels_str);
+        let ask_prices = parsers::extract_prices_and_amounts(levels_str);
 
-        for price in ask_prices {
+        for price_amount in ask_prices {
             writer
                 .execute(
                     &insert_asks,
@@ -77,12 +79,37 @@ async fn main() -> Result<()> {
                         order_book.exchange.to_string(),
                         order_book.instrument.base.to_string(),
                         order_book.instrument.quote.to_string(),
-                        price,
+                        price_amount.0,
+                        price_amount.1,
+                    ),
+                )
+                .await?;
+        }
+
+        // Process bids
+        let bids = format!("{:?}", order_book.kind.bids);
+        let levels_start = bids.find("levels: [").unwrap() + "levels: [".len();
+        let levels_end = bids.rfind(']').unwrap();
+        let levels_str = &bids[levels_start..levels_end];
+        let bid_prices = parsers::extract_prices_and_amounts(levels_str);
+
+        for price_amount in bid_prices {
+            writer
+                .execute(
+                    &insert_bids,
+                    (
+                        order_book.exchange_time,
+                        order_book.exchange.to_string(),
+                        order_book.instrument.base.to_string(),
+                        order_book.instrument.quote.to_string(),
+                        price_amount.0,
+                        price_amount.1,
                     ),
                 )
                 .await?;
         }
     }
+
 
     print_chart_task.await.unwrap();
     Ok(())
