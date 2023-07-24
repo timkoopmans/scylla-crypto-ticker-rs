@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  scylla:
+    image: scylladb/scylla
+    container_name: scylla
+    volumes:
+      - scylla_data:/var/lib/scylla/data
+    ports:
+      - 9042:9042
+    restart: always
+
+volumes:
+  scylla_data:
