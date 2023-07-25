@@ -12,19 +12,19 @@ build:
 	cargo build
 
 up:
-	docker-compose -f docker-compose.yml up --detach --remove-orphans scylla
+	docker-compose -f docker-compose.yml up --detach --remove-orphans
 
 down:
 	docker-compose -f docker-compose.yml down --remove-orphans
 
 run:
-	cargo run -p scylladb-order-book-rs btc usdt
+	cargo run -p scylladb-order-book-rs eth usdt
 
 migrate:
 	migrations/migrate.sh
 
 reset:
-	docker-compose down --remove-orphans
+	docker-compose down --remove-orphans scylla
 	docker-compose up --detach --force-recreate scylla
 	@{ \
 	    while ! docker-compose exec scylla curl --fail http://localhost:10000/storage_service/native_transport > /dev/null 2>&1; \

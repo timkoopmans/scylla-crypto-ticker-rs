@@ -1,17 +1,25 @@
 mod db;
 mod util;
 
-use anyhow::Result;
 use barter_data::{
-    exchange::{binance::spot::BinanceSpot, ExchangeId},
+    exchange::{binance::spot::BinanceSpot},
     streams::Streams,
-    subscription::book::OrderBooksL2,
+    subscription::trade::PublicTrades
 };
 use barter_integration::model::instrument::kind::InstrumentKind;
 use structopt::StructOpt;
-use tracing::info;
 use db::{connection, queries};
-use util::{charts, parsers};
+use std::collections::HashMap;
+use std::path::Path;
+use rocket::{get, routes, State};
+use rocket::fs::{FileServer, NamedFile, relative};
+use rocket::http::Status;
+use tokio_stream::StreamExt;
+use rocket::response::status;
+use rocket::serde::json::Json;
+use scylla::{FromRow, IntoTypedRows, Session};
+use scylla::query::Query;
+use serde::Serialize;
 
 #[derive(Debug, StructOpt)]
 pub struct Opt {
@@ -22,95 +30,190 @@ pub struct Opt {
     /// quote token
     #[structopt(default_value = "usdt")]
     quote: String,
+
+    /// resolution in milliseconds
+    #[structopt(default_value = "2000")]
+    resolution: i64,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+#[get("/")]
+async fn index() -> Option<NamedFile> {
+    NamedFile::open(Path::new("public/index.html")).await.ok()
+}
+
+#[get("/data/<symbol>", rank = 1)]
+async fn data(symbol: String, session: &State<Session>) -> Result<Json<Vec<Candle>>, status::Custom<String>> {
+    let cql_query = Query::new(format!("SELECT * FROM orders.candles WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT' LIMIT 300;", symbol));
+
+    let rows = session
+        .query(cql_query, ())
+        .await
+        .map_err(|err| status::Custom(Status::InternalServerError, err.to_string()))?
+        .rows
+        .unwrap_or_default();
+
+    let result: Vec<Candle> = rows.into_typed()
+        .filter_map(Result::ok)
+        .collect();
+
+    Ok(Json(result))
+}
+
+#[get("/data/<symbol>/<duration>", rank = 1)]
+async fn data_duration(symbol: String, duration: String, session: &State<Session>) -> Result<Json<Vec<Candle>>, status::Custom<String>> {
+
+    let time_bucket_from = util::parser::time_bucket_from(duration).unwrap();
+    let cql_query = Query::new(format!("SELECT * FROM orders.candles WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT' AND time_bucket >= {};", symbol, time_bucket_from));
+
+    let rows = session
+        .query(cql_query, ())
+        .await
+        .map_err(|err| status::Custom(Status::InternalServerError, err.to_string()))?
+        .rows
+        .unwrap_or_default();
+
+    let result: Vec<Candle> = rows.into_typed()
+        .filter_map(Result::ok)
+        .collect();
+
+    Ok(Json(result))
+}
+
+    #[tokio::main]
+async fn main() {
     util::logging::init();
     let opt = Opt::from_args();
 
-    let writer = connection::builder().await?;
-    let insert_bids = queries::write_prices(&writer, "bids").await?;
-    let insert_asks = queries::write_prices(&writer, "asks").await?;
+    let session = connection::builder().await.expect("Failed to connect to database");
 
-    let mut streams = Streams::<OrderBooksL2>::builder()
+    // Spawn Rocket server as a background task
+    let rocket = rocket::build().mount("/", routes![index, data, data_duration])
+        .mount("/", FileServer::from(relative!("public/")))
+        .manage(session);
+    tokio::spawn(async { rocket.launch().await.unwrap() });
+
+    let writer = connection::builder().await.expect("Failed to connect to database");
+    let insert_trade = queries::write_trades(&writer).await.expect("Failed to prepare query");
+    let insert_candle = queries::write_candles(&writer).await.expect("Failed to prepare query");
+    let mut current_candles: HashMap<(String, String, String), Candle> = HashMap::new();
+
+    let builder = Streams::<PublicTrades>::builder()
         .subscribe([(
             BinanceSpot::default(),
             opt.base,
             opt.quote,
             InstrumentKind::Spot,
-            OrderBooksL2,
-        )])
-        .init()
-        .await?;
+            PublicTrades,
+        )]);
+    let streams = builder.init().await.unwrap();
+    let mut joined_stream = streams.join_map().await;
+    while let Some((exchange, trade_data)) = joined_stream.next().await {
+        let trade = Trade {
+            exchange: exchange.to_string(),
+            base: trade_data.instrument.base.to_string().to_uppercase(),
+            quote: trade_data.instrument.quote.to_string().to_uppercase(),
+            time_bucket: trade_data.exchange_time.timestamp_millis() / opt.resolution,
+            timestamp: trade_data.exchange_time.naive_utc().timestamp_millis(),
+            id: trade_data.kind.id.parse().unwrap(),
+            price: trade_data.kind.price,
+            qty: trade_data.kind.amount,
+        };
 
-    let mut binance_stream = streams
-        .select(ExchangeId::BinanceSpot)
-        .ok_or(anyhow::anyhow!("Failed to select BinanceSpot"))?;
 
-    let print_chart_task = tokio::spawn(async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(15));
-        loop {
-            interval.tick().await;
+        let key = (trade.exchange.clone(), trade.base.clone(), trade.quote.clone());
 
-            let reader = connection::builder()
-                .await
-                .expect("Failed to connect to db");
-            if let Err(e) = charts::print_depth_chart(&reader, "asks").await {
-                eprintln!("Failed to print chart: {}", e);
-            }
-        }
-    });
+        // Get the current candle for this exchange, base, and quote
+        let current_candle = current_candles.entry(key.clone()).or_insert(Candle {
+            exchange: trade.exchange.clone(),
+            base: trade.base.clone(),
+            quote: trade.quote.clone(),
+            time_bucket: trade.time_bucket,
+            open_price: trade.price,
+            high_price: trade.price,
+            low_price: trade.price,
+            close_price: trade.price,
+            volume: trade.qty,
+        });
 
-    while let Some(order_book) = binance_stream.recv().await {
-        // Process asks
-        let asks = format!("{:?}", order_book.kind.asks);
-        let levels_start = asks.find("levels: [").unwrap() + "levels: [".len();
-        let levels_end = asks.rfind(']').unwrap();
-        let levels_str = &asks[levels_start..levels_end];
-        let ask_prices = parsers::extract_prices_and_amounts(levels_str);
-
-        for price_amount in ask_prices {
+        // If the trade is in the current time bucket, update the current candle
+        if trade.time_bucket == current_candle.time_bucket {
+            current_candle.high_price = current_candle.high_price.max(trade.price);
+            current_candle.low_price = current_candle.low_price.min(trade.price);
+            current_candle.close_price = trade.price;
+            current_candle.volume += trade.qty;
+        } else {
+            // If the trade is in the next time bucket, write the current candle to the database
+            // and start a new one
             writer
                 .execute(
-                    &insert_asks,
+                    &insert_candle,
                     (
-                        order_book.exchange_time,
-                        order_book.exchange.to_string(),
-                        order_book.instrument.base.to_string(),
-                        order_book.instrument.quote.to_string(),
-                        price_amount.0,
-                        price_amount.1,
+                        current_candle.exchange.clone(),
+                        current_candle.base.clone(),
+                        current_candle.quote.clone(),
+                        current_candle.time_bucket,
+                        current_candle.open_price,
+                        current_candle.high_price,
+                        current_candle.low_price,
+                        current_candle.close_price,
+                        current_candle.volume,
                     ),
                 )
-                .await?;
+                .await.expect("Failed to write candle to database");
+
+            *current_candle = Candle {
+                exchange: trade.exchange.clone(),
+                base: trade.base.clone(),
+                quote: trade.quote.clone(),
+                time_bucket: trade.time_bucket,
+                open_price: trade.price,
+                high_price: trade.price,
+                low_price: trade.price,
+                close_price: trade.price,
+                volume: trade.qty,
+            };
         }
 
-        // Process bids
-        let bids = format!("{:?}", order_book.kind.bids);
-        let levels_start = bids.find("levels: [").unwrap() + "levels: [".len();
-        let levels_end = bids.rfind(']').unwrap();
-        let levels_str = &bids[levels_start..levels_end];
-        let bid_prices = parsers::extract_prices_and_amounts(levels_str);
-
-        for price_amount in bid_prices {
-            writer
-                .execute(
-                    &insert_bids,
-                    (
-                        order_book.exchange_time,
-                        order_book.exchange.to_string(),
-                        order_book.instrument.base.to_string(),
-                        order_book.instrument.quote.to_string(),
-                        price_amount.0,
-                        price_amount.1,
-                    ),
-                )
-                .await?;
-        }
+        writer
+            .execute(
+                &insert_trade,
+                (
+                    trade.exchange,
+                    trade.base,
+                    trade.quote,
+                    trade.time_bucket,
+                    trade.timestamp,
+                    trade.id,
+                    trade.price,
+                    trade.qty,
+                ),
+            )
+            .await.expect("Failed to write trade to database");
     }
+}
 
 
-    print_chart_task.await.unwrap();
-    Ok(())
+#[derive(Clone, Debug, Serialize, FromRow)]
+struct Trade {
+    exchange: String,
+    base: String,
+    quote: String,
+    time_bucket: i64,
+    timestamp: i64,
+    id: i64,
+    price: f64,
+    qty: f64
+}
+
+#[derive(Clone, Debug, Serialize, FromRow)]
+struct Candle {
+    exchange: String,
+    base: String,
+    quote: String,
+    time_bucket: i64,
+    open_price: f64,
+    high_price: f64,
+    low_price: f64,
+    close_price: f64,
+    volume: f64,
 }
