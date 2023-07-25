@@ -13,7 +13,11 @@ services:
   ticker:
     build: .
     image: timkoopmans/scylla-crypto-ticker
-    command: eth btc 2000
+    ports:
+      - 8000:8000
+    environment:
+      - DATABASE_URL=scylla:9042
+      - ROCKET_ADDRESS=0.0.0.0
     restart: always
 
 volumes:

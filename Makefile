@@ -11,6 +11,8 @@ list:
 build:
 	cargo build
 	docker-compose build
+
+push:
 	docker-compose push
 
 up:

@@ -101,6 +101,7 @@ async fn trades(symbol: String, session: &State<Session>) -> Result<Json<Vec<Tra
 
 #[tokio::main]
 async fn main() {
+    dotenv::dotenv().ok();
     util::logging::init();
     let opt = Opt::from_args();
 
