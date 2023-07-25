@@ -2249,18 +2249,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "scylla-macros"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32d777dadbf7163d1524ea4f5a095146298d263a686febb96d022cf46d06df32"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "scylladb-order-book-rs"
+name = "scylla-crypto-ticker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2281,6 +2270,17 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "scylla-macros"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32d777dadbf7163d1524ea4f5a095146298d263a686febb96d022cf46d06df32"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]

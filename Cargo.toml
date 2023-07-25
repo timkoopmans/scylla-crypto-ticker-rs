@@ -1,5 +1,5 @@
 [package]
-name = "scylladb-order-book-rs"
+name = "scylla-crypto-ticker"
 version = "0.1.0"
 edition = "2021"
 

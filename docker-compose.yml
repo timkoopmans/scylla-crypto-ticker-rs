@@ -10,5 +10,11 @@ services:
       - 9042:9042
     restart: always
 
+  ticker:
+    build: .
+    image: timkoopmans/scylla-crypto-ticker
+    command: eth btc 2000
+    restart: always
+
 volumes:
   scylla_data:

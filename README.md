@@ -1,11 +1,11 @@
-# ScyllaDB demo with Binance L2 Order Books
+# ScyllaDB Crypto Ticker
 
-This is a demo of ScyllaDB with [Binance L2 Order Books](https://www.binance.com/en/support/faq/understanding-order-book-and-market-depth-da311403b10347f09ff783a2525c8aa6). 
-It is a simple binary that charts bid or ask price depth for a given pair.
+This is a demo of ScyllaDB with [Binance websocket market streams](https://binance-docs.github.io/apidocs/spot/en/#websocket-market-streams). 
+It is a simple binary that charts live prices at 2 second resolution for a given pair.
 
 ## Example Output
 
-    cargo run -p scylladb-order-book-rs btc usdt
+    cargo run -p scylla-crypto-ticker eth usdt
 
 ![img.png](img.png)
 
@@ -42,9 +42,3 @@ To destroy the database
 * [Docker](https://www.docker.com/)
 * [Docker Compose](https://docs.docker.com/compose/)
 * [GNU Make](https://www.gnu.org/software/make/)
-
-## TODO
-
-* [ ] Add tests
-* [ ] Print out both bid and ask
-* [ ] Write amount, not just price to the database

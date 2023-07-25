@@ -10,6 +10,7 @@ list:
 
 build:
 	cargo build
+	docker-compose build
 
 up:
 	docker-compose -f docker-compose.yml up --detach --remove-orphans
@@ -18,7 +19,7 @@ down:
 	docker-compose -f docker-compose.yml down --remove-orphans
 
 run:
-	cargo run -p scylladb-order-book-rs eth usdt
+	cargo run -p scylla-crypto-ticker eth usdt
 
 migrate:
 	migrations/migrate.sh
