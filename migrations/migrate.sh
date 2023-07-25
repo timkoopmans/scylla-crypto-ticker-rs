@@ -13,5 +13,5 @@ fi
 # Loop through each .cql file and run it with cqlsh
 for file in $cql_files; do
     echo "Running $file"
-    cqlsh --file "$file"
+    docker-compose exec scylla cqlsh --file "/migrations/$file"
 done
