@@ -1,2 +1,2 @@
 pub(crate) mod routes;
-pub(crate) mod serve;
+pub(crate) mod server;

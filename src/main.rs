@@ -13,7 +13,7 @@ use db::{connection, queries};
 use std::collections::HashMap;
 use tokio_stream::StreamExt;
 use db::models::{Candle, Trade};
-use web::serve;
+use web::server;
 
 #[derive(Debug, StructOpt)]
 pub struct Opt {
@@ -36,7 +36,7 @@ async fn main() {
     util::logging::init();
     let opt = Opt::from_args();
 
-    let web = serve::init().await;
+    let web = server::init().await;
     tokio::spawn(async { web.launch().await.unwrap() });
 
     let writer = connection::builder().await.expect("Failed to connect to database");
