@@ -1,6 +1,8 @@
 const chartHeight = Math.floor(document.documentElement.clientHeight / 2);
 const resolution = 2000;
-const symbol = 'ETH';
+
+let symbol = 'ETH'; // Initial value
+
 const chartOptions = {
     width: document.documentElement.clientWidth,
     height: chartHeight,
@@ -24,7 +26,15 @@ const candlestickSeries = chart.addCandlestickSeries();
 let previousData = null;
 let previousTime = null;
 
+document.getElementById('symbol').addEventListener('change', handleSymbolChange);
+
 setupAutoRefresh();
+
+function handleSymbolChange() {
+    const dropdown = document.getElementById('symbol');
+    symbol = dropdown.value; // Update the symbol variable with the selected value
+    console.log(`Selected symbol: ${symbol}`);
+}
 
 function createChart(id, options) {
     const chart = LightweightCharts.createChart(document.getElementById(id), options);
@@ -92,10 +102,10 @@ function updateMetrics() {
                 const queryRate = (data.queries_requested + data.iter_queries_requested - previousData.queries_requested - previousData.iter_queries_requested) / timeDiffSeconds;
                 const errorRate = (data.errors_occurred + data.iter_errors_occurred - previousData.errors_occurred - previousData.iter_errors_occurred) / timeDiffSeconds;
 
-                document.getElementById('requested').textContent = `Queries: ${queryRate.toFixed(2)} per second`;
-                document.getElementById('errors').textContent = `Errors: ${errorRate.toFixed(2)} per second`;
+                document.getElementById('requested').textContent = `Queries: ${queryRate.toFixed(2)}/sec |`;
+                document.getElementById('errors').textContent = `Errors: ${errorRate.toFixed(2)}/sec |`;
             }
-            document.getElementById('meanLatency').textContent = "Mean Latency: " + data.mean_latency + " ms";
+            document.getElementById('meanLatency').textContent = "Mean Latency: " + data.mean_latency + " ms |";
             document.getElementById('p99Latency').textContent = "P99 Latency: " + data.p99_latency + " ms";
 
             // Update the previousData and previousTime for the next calculation

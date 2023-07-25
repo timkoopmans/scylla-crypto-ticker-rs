@@ -41,12 +41,40 @@ body {
     flex: 1;
 }
 
+.base {
+    z-index: 2000;
+}
+
+#base > label {
+    font-size: 16px;
+}
+
+#symbol {
+    font-family: "GT America Mono", monospace;
+    font-size: 20px;
+}
+
 .overlay {
     position: fixed;
-    top: 0;
+    top: 5%;
     left: 0;
-    background-color: rgba(0, 0, 0, 0.5); /* black with 50% opacity */
+    transform: translateY(-50%);
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.5);
     color: white;
-    padding: 10px;
     z-index: 1000;
+}
+
+.overlay-content {
+    display: flex;
+    padding: 20px;
+    white-space: nowrap;
+}
+
+.overlay p {
+    margin: 10px 0;
+    padding: 5px;
 }
