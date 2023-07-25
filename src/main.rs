@@ -11,10 +11,9 @@ use barter_integration::model::instrument::kind::InstrumentKind;
 use structopt::StructOpt;
 use db::{connection, queries};
 use std::collections::HashMap;
-use rocket::routes;
-use rocket::fs::{FileServer, relative};
 use tokio_stream::StreamExt;
 use db::models::{Candle, Trade};
+use web::serve;
 
 #[derive(Debug, StructOpt)]
 pub struct Opt {
@@ -37,13 +36,8 @@ async fn main() {
     util::logging::init();
     let opt = Opt::from_args();
 
-    let session = connection::builder().await.expect("Failed to connect to database");
-
-    // Spawn Rocket server as a background task
-    let rocket = rocket::build().mount("/", routes![web::routes::index, web::routes::data, web::routes::data_duration, web::routes::trades])
-        .mount("/", FileServer::from(relative!("public/")))
-        .manage(session);
-    tokio::spawn(async { rocket.launch().await.unwrap() });
+    let web = serve::init().await;
+    tokio::spawn(async { web.launch().await.unwrap() });
 
     let writer = connection::builder().await.expect("Failed to connect to database");
     let insert_trade = queries::write_trades(&writer).await.expect("Failed to prepare query");
