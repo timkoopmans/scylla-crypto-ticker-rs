@@ -1,5 +1,6 @@
 mod db;
 mod util;
+mod web;
 
 use barter_data::{
     exchange::binance::spot::BinanceSpot,
@@ -10,16 +11,9 @@ use barter_integration::model::instrument::kind::InstrumentKind;
 use structopt::StructOpt;
 use db::{connection, queries};
 use std::collections::HashMap;
-use std::path::Path;
-use rocket::{get, routes, State};
-use rocket::fs::{FileServer, NamedFile, relative};
-use rocket::http::Status;
+use rocket::routes;
+use rocket::fs::{FileServer, relative};
 use tokio_stream::StreamExt;
-use rocket::response::status;
-use rocket::serde::json::Json;
-use scylla::{IntoTypedRows, Session};
-use scylla::query::Query;
-use tracing::info;
 use db::models::{Candle, Trade};
 
 #[derive(Debug, StructOpt)]
@@ -37,68 +31,6 @@ pub struct Opt {
     resolution: i64,
 }
 
-#[get("/")]
-async fn index() -> Option<NamedFile> {
-    NamedFile::open(Path::new("public/index.html")).await.ok()
-}
-
-#[get("/data/<symbol>", rank = 1)]
-async fn data(symbol: String, session: &State<Session>) -> Result<Json<Vec<Candle>>, status::Custom<String>> {
-    let cql_query = Query::new(format!("SELECT * FROM orders.candles WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT' LIMIT 300;", symbol));
-
-    let rows = session
-        .query(cql_query, ())
-        .await
-        .map_err(|err| status::Custom(Status::InternalServerError, err.to_string()))?
-        .rows
-        .unwrap_or_default();
-
-    let result: Vec<Candle> = rows.into_typed()
-        .filter_map(Result::ok)
-        .collect();
-
-    Ok(Json(result))
-}
-
-#[get("/data/<symbol>/<duration>", rank = 1)]
-async fn data_duration(symbol: String, duration: String, session: &State<Session>) -> Result<Json<Vec<Candle>>, status::Custom<String>> {
-
-    let time_bucket_from = util::parser::time_bucket_from(duration).unwrap();
-    info!("time_bucket_from: {}", time_bucket_from);
-    let cql_query = Query::new(format!("SELECT * FROM orders.candles WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT' AND time_bucket >= {};", symbol, time_bucket_from));
-
-    let rows = session
-        .query(cql_query, ())
-        .await
-        .map_err(|err| status::Custom(Status::InternalServerError, err.to_string()))?
-        .rows
-        .unwrap_or_default();
-
-    let result: Vec<Candle> = rows.into_typed()
-        .filter_map(Result::ok)
-        .collect();
-
-    Ok(Json(result))
-}
-
-#[get("/trades/<symbol>", rank = 1)]
-async fn trades(symbol: String, session: &State<Session>) -> Result<Json<Vec<Trade>>, status::Custom<String>> {
-    let cql_query = Query::new(format!("SELECT * FROM orders.trades WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT';", symbol));
-
-    let rows = session
-        .query(cql_query, ())
-        .await
-        .map_err(|err| status::Custom(Status::InternalServerError, err.to_string()))?
-        .rows
-        .unwrap_or_default();
-
-    let result: Vec<Trade> = rows.into_typed()
-        .filter_map(Result::ok)
-        .collect();
-
-    Ok(Json(result))
-}
-
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
@@ -108,7 +40,7 @@ async fn main() {
     let session = connection::builder().await.expect("Failed to connect to database");
 
     // Spawn Rocket server as a background task
-    let rocket = rocket::build().mount("/", routes![index, data, data_duration, trades])
+    let rocket = rocket::build().mount("/", routes![web::routes::index, web::routes::data, web::routes::data_duration, web::routes::trades])
         .mount("/", FileServer::from(relative!("public/")))
         .manage(session);
     tokio::spawn(async { rocket.launch().await.unwrap() });
