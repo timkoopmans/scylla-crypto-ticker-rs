@@ -21,6 +21,9 @@ const chartOptions = {
 
 const chart = createChart('chart', chartOptions);
 const candlestickSeries = chart.addCandlestickSeries();
+let previousData = null;
+let previousTime = null;
+
 setupAutoRefresh();
 
 function createChart(id, options) {
@@ -48,6 +51,8 @@ function updateData() {
         .catch(console.error);
 
     updateLiveTrades(symbol);
+
+    updateMetrics();
 }
 
 function formatData(data) {
@@ -74,6 +79,32 @@ function updateLiveTrades(symbol) {
             tradeContainer.appendChild(table);
         })
         .catch(console.error);
+}
+
+function updateMetrics() {
+    const currentTime = Date.now();
+    fetch('http://localhost:8000/metrics')
+        .then(response => response.json())
+        .then(data => {
+            if (previousData) {
+                // The rate is calculated as the difference in queries or errors divided by the difference in time (in seconds)
+                const timeDiffSeconds = (currentTime - previousTime) / 1000;
+                const queryRate = (data.queries_requested + data.iter_queries_requested - previousData.queries_requested - previousData.iter_queries_requested) / timeDiffSeconds;
+                const errorRate = (data.errors_occurred + data.iter_errors_occurred - previousData.errors_occurred - previousData.iter_errors_occurred) / timeDiffSeconds;
+
+                document.getElementById('requested').textContent = `Queries: ${queryRate.toFixed(2)} per second`;
+                document.getElementById('errors').textContent = `Errors: ${errorRate.toFixed(2)} per second`;
+            }
+            document.getElementById('meanLatency').textContent = "Mean Latency: " + data.mean_latency + " ms";
+            document.getElementById('p99Latency').textContent = "P99 Latency: " + data.p99_latency + " ms";
+
+            // Update the previousData and previousTime for the next calculation
+            previousData = data;
+            previousTime = currentTime;
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
 }
 
 function createTradeTable(data) {

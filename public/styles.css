@@ -40,3 +40,13 @@ body {
 .trade-table td {
     flex: 1;
 }
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.5); /* black with 50% opacity */
+    color: white;
+    padding: 10px;
+    z-index: 1000;
+}
