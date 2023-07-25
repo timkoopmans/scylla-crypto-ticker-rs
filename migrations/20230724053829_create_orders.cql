@@ -8,12 +8,11 @@ CREATE TABLE IF NOT EXISTS trades (
                                          exchange text,
                                          base text,
                                          quote text,
-                                         time_bucket bigint,
                                          timestamp timestamp,
                                          id bigint,
                                          price double,
                                          qty double,
-                                         PRIMARY KEY ((exchange, base, quote, time_bucket), timestamp, id)
+                                         PRIMARY KEY ((exchange, base, quote), timestamp)
 ) WITH CLUSTERING ORDER BY (timestamp ASC)
 AND COMPACTION = {'class': 'TimeWindowCompactionStrategy', 'base_time_seconds': 3600, 'max_sstable_age_days': 1};
 

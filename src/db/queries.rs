@@ -5,8 +5,8 @@ use scylla::transport::errors::QueryError;
 pub async fn write_trades(session: &Session) -> anyhow::Result<PreparedStatement, QueryError> {
     session
         .prepare("INSERT INTO orders.trades \
-            (exchange, base, quote, time_bucket, timestamp, id, price, qty) \
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            (exchange, base, quote, timestamp, id, price, qty) \
+            VALUES (?, ?, ?, ?, ?, ?, ?)"
         )
         .await
 }

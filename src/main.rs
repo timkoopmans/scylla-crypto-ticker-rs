@@ -20,6 +20,7 @@ use rocket::serde::json::Json;
 use scylla::{FromRow, IntoTypedRows, Session};
 use scylla::query::Query;
 use serde::Serialize;
+use tracing::info;
 
 #[derive(Debug, StructOpt)]
 pub struct Opt {
@@ -63,6 +64,7 @@ async fn data(symbol: String, session: &State<Session>) -> Result<Json<Vec<Candl
 async fn data_duration(symbol: String, duration: String, session: &State<Session>) -> Result<Json<Vec<Candle>>, status::Custom<String>> {
 
     let time_bucket_from = util::parser::time_bucket_from(duration).unwrap();
+    info!("time_bucket_from: {}", time_bucket_from);
     let cql_query = Query::new(format!("SELECT * FROM orders.candles WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT' AND time_bucket >= {};", symbol, time_bucket_from));
 
     let rows = session
@@ -79,7 +81,25 @@ async fn data_duration(symbol: String, duration: String, session: &State<Session
     Ok(Json(result))
 }
 
-    #[tokio::main]
+#[get("/trades/<symbol>", rank = 1)]
+async fn trades(symbol: String, session: &State<Session>) -> Result<Json<Vec<Trade>>, status::Custom<String>> {
+    let cql_query = Query::new(format!("SELECT * FROM orders.trades WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT';", symbol));
+
+    let rows = session
+        .query(cql_query, ())
+        .await
+        .map_err(|err| status::Custom(Status::InternalServerError, err.to_string()))?
+        .rows
+        .unwrap_or_default();
+
+    let result: Vec<Trade> = rows.into_typed()
+        .filter_map(Result::ok)
+        .collect();
+
+    Ok(Json(result))
+}
+
+#[tokio::main]
 async fn main() {
     util::logging::init();
     let opt = Opt::from_args();
@@ -87,7 +107,7 @@ async fn main() {
     let session = connection::builder().await.expect("Failed to connect to database");
 
     // Spawn Rocket server as a background task
-    let rocket = rocket::build().mount("/", routes![index, data, data_duration])
+    let rocket = rocket::build().mount("/", routes![index, data, data_duration, trades])
         .mount("/", FileServer::from(relative!("public/")))
         .manage(session);
     tokio::spawn(async { rocket.launch().await.unwrap() });
@@ -112,7 +132,6 @@ async fn main() {
             exchange: exchange.to_string(),
             base: trade_data.instrument.base.to_string().to_uppercase(),
             quote: trade_data.instrument.quote.to_string().to_uppercase(),
-            time_bucket: trade_data.exchange_time.timestamp_millis() / opt.resolution,
             timestamp: trade_data.exchange_time.naive_utc().timestamp_millis(),
             id: trade_data.kind.id.parse().unwrap(),
             price: trade_data.kind.price,
@@ -127,16 +146,16 @@ async fn main() {
             exchange: trade.exchange.clone(),
             base: trade.base.clone(),
             quote: trade.quote.clone(),
-            time_bucket: trade.time_bucket,
+            time_bucket: trade.timestamp / opt.resolution,
             open_price: trade.price,
             high_price: trade.price,
             low_price: trade.price,
             close_price: trade.price,
-            volume: trade.qty,
+            volume: trade.qty
         });
 
         // If the trade is in the current time bucket, update the current candle
-        if trade.time_bucket == current_candle.time_bucket {
+        if trade.timestamp / opt.resolution == current_candle.time_bucket {
             current_candle.high_price = current_candle.high_price.max(trade.price);
             current_candle.low_price = current_candle.low_price.min(trade.price);
             current_candle.close_price = trade.price;
@@ -165,7 +184,7 @@ async fn main() {
                 exchange: trade.exchange.clone(),
                 base: trade.base.clone(),
                 quote: trade.quote.clone(),
-                time_bucket: trade.time_bucket,
+                time_bucket: trade.timestamp / opt.resolution,
                 open_price: trade.price,
                 high_price: trade.price,
                 low_price: trade.price,
@@ -181,7 +200,6 @@ async fn main() {
                     trade.exchange,
                     trade.base,
                     trade.quote,
-                    trade.time_bucket,
                     trade.timestamp,
                     trade.id,
                     trade.price,
@@ -198,7 +216,6 @@ struct Trade {
     exchange: String,
     base: String,
     quote: String,
-    time_bucket: i64,
     timestamp: i64,
     id: i64,
     price: f64,
