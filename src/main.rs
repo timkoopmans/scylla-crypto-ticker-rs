@@ -2,7 +2,7 @@ mod db;
 mod util;
 
 use barter_data::{
-    exchange::{binance::spot::BinanceSpot},
+    exchange::binance::spot::BinanceSpot,
     streams::Streams,
     subscription::trade::PublicTrades
 };
@@ -17,10 +17,10 @@ use rocket::http::Status;
 use tokio_stream::StreamExt;
 use rocket::response::status;
 use rocket::serde::json::Json;
-use scylla::{FromRow, IntoTypedRows, Session};
+use scylla::{IntoTypedRows, Session};
 use scylla::query::Query;
-use serde::Serialize;
 use tracing::info;
+use db::models::{Candle, Trade};
 
 #[derive(Debug, StructOpt)]
 pub struct Opt {
@@ -209,29 +209,4 @@ async fn main() {
             )
             .await.expect("Failed to write trade to database");
     }
-}
-
-
-#[derive(Clone, Debug, Serialize, FromRow)]
-struct Trade {
-    exchange: String,
-    base: String,
-    quote: String,
-    timestamp: i64,
-    id: i64,
-    price: f64,
-    qty: f64
-}
-
-#[derive(Clone, Debug, Serialize, FromRow)]
-struct Candle {
-    exchange: String,
-    base: String,
-    quote: String,
-    time_bucket: i64,
-    open_price: f64,
-    high_price: f64,
-    low_price: f64,
-    close_price: f64,
-    volume: f64,
 }
