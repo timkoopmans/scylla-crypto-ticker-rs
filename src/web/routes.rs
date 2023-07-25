@@ -19,7 +19,7 @@ pub async fn index() -> Option<NamedFile> {
 #[get("/data/<symbol>", rank = 1)]
 pub async fn data(
     symbol: String,
-    session: &State<Session>,
+    session: &State<Arc<Session>>,
 ) -> Result<Json<Vec<Candle>>, status::Custom<String>> {
     let cql_query = Query::new(format!("SELECT * FROM orders.candles WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT' LIMIT 300;", symbol));
 
@@ -39,7 +39,7 @@ pub async fn data(
 pub async fn data_duration(
     symbol: String,
     duration: String,
-    session: &State<Session>,
+    session: &State<Arc<Session>>,
 ) -> Result<Json<Vec<Candle>>, status::Custom<String>> {
     let time_bucket_from = util::parser::time_bucket_from(duration).unwrap();
     info!("time_bucket_from: {}", time_bucket_from);
@@ -60,7 +60,7 @@ pub async fn data_duration(
 #[get("/trades/<symbol>", rank = 1)]
 pub async fn trades(
     symbol: String,
-    session: &State<Session>,
+    session: &State<Arc<Session>>,
 ) -> Result<Json<Vec<Trade>>, status::Custom<String>> {
     let cql_query = Query::new(format!("SELECT * FROM orders.trades WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT';", symbol));
 
@@ -77,7 +77,9 @@ pub async fn trades(
 }
 
 #[get("/metrics", rank = 1)]
-pub async fn metrics(session: &State<Session>) -> Result<Json<Metric>, status::Custom<String>> {
+pub async fn metrics(
+    session: &State<Arc<Session>>,
+) -> Result<Json<Metric>, status::Custom<String>> {
     let metrics: Arc<Metrics> = session.get_metrics();
 
     let mean_latency = match metrics.get_latency_avg_ms() {

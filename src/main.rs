@@ -3,16 +3,15 @@ mod util;
 mod web;
 
 use barter_data::{
-    exchange::binance::spot::BinanceSpot,
-    streams::Streams,
-    subscription::trade::PublicTrades
+    exchange::binance::spot::BinanceSpot, streams::Streams, subscription::trade::PublicTrades,
 };
 use barter_integration::model::instrument::kind::InstrumentKind;
-use structopt::StructOpt;
+use db::models::{Candle, Trade};
 use db::{connection, queries};
 use std::collections::HashMap;
+use std::sync::Arc;
+use structopt::StructOpt;
 use tokio_stream::StreamExt;
-use db::models::{Candle, Trade};
 use web::server;
 
 #[derive(Debug, StructOpt)]
@@ -36,22 +35,30 @@ async fn main() {
     util::logging::init();
     let opt = Opt::from_args();
 
-    let web = server::init().await;
+    let session = Arc::new(
+        connection::builder()
+            .await
+            .expect("Failed to connect to database"),
+    );
+
+    let web = server::init(session.clone()).await;
     tokio::spawn(async { web.launch().await.unwrap() });
 
-    let writer = connection::builder().await.expect("Failed to connect to database");
-    let insert_trade = queries::write_trades(&writer).await.expect("Failed to prepare query");
-    let insert_candle = queries::write_candles(&writer).await.expect("Failed to prepare query");
+    let insert_trade = queries::write_trades(&session)
+        .await
+        .expect("Failed to prepare query");
+    let insert_candle = queries::write_candles(&session)
+        .await
+        .expect("Failed to prepare query");
     let mut current_candles: HashMap<(String, String, String), Candle> = HashMap::new();
 
-    let builder = Streams::<PublicTrades>::builder()
-        .subscribe([(
-            BinanceSpot::default(),
-            opt.base,
-            opt.quote,
-            InstrumentKind::Spot,
-            PublicTrades,
-        )]);
+    let builder = Streams::<PublicTrades>::builder().subscribe([(
+        BinanceSpot::default(),
+        opt.base,
+        opt.quote,
+        InstrumentKind::Spot,
+        PublicTrades,
+    )]);
     let streams = builder.init().await.unwrap();
     let mut joined_stream = streams.join_map().await;
     while let Some((exchange, trade_data)) = joined_stream.next().await {
@@ -65,8 +72,11 @@ async fn main() {
             qty: trade_data.kind.amount,
         };
 
-
-        let key = (trade.exchange.clone(), trade.base.clone(), trade.quote.clone());
+        let key = (
+            trade.exchange.clone(),
+            trade.base.clone(),
+            trade.quote.clone(),
+        );
 
         // Get the current candle for this exchange, base, and quote
         let current_candle = current_candles.entry(key.clone()).or_insert(Candle {
@@ -78,7 +88,7 @@ async fn main() {
             high_price: trade.price,
             low_price: trade.price,
             close_price: trade.price,
-            volume: trade.qty
+            volume: trade.qty,
         });
 
         // If the trade is in the current time bucket, update the current candle
@@ -90,7 +100,7 @@ async fn main() {
         } else {
             // If the trade is in the next time bucket, write the current candle to the database
             // and start a new one
-            writer
+            session
                 .execute(
                     &insert_candle,
                     (
@@ -105,7 +115,8 @@ async fn main() {
                         current_candle.volume,
                     ),
                 )
-                .await.expect("Failed to write candle to database");
+                .await
+                .expect("Failed to write candle to database");
 
             *current_candle = Candle {
                 exchange: trade.exchange.clone(),
@@ -120,7 +131,7 @@ async fn main() {
             };
         }
 
-        writer
+        session
             .execute(
                 &insert_trade,
                 (
@@ -133,6 +144,7 @@ async fn main() {
                     trade.qty,
                 ),
             )
-            .await.expect("Failed to write trade to database");
+            .await
+            .expect("Failed to write trade to database");
     }
 }
