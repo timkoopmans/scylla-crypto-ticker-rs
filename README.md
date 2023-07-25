@@ -5,7 +5,7 @@ It is a simple binary that charts live prices at 2 second resolution for a given
 
 ## Example Output
 
-![img.png](img.png)
+![demo.gif](demo.gif)
 
 ## Usage
 
@@ -22,7 +22,8 @@ Then migrate the database schema:
 
 Then run the demo application:
 
-    docker-compose up --detach ticker
+    docker-compose pull ticker
+    docker-compose up --no-build --detach ticker
 
 You should then be able to view the demo at http://localhost:8000/index.html
 
