@@ -11,6 +11,7 @@ list:
 build:
 	cargo build
 	docker-compose build
+	docker-compose push
 
 up:
 	docker-compose -f docker-compose.yml up --detach --remove-orphans
@@ -31,6 +32,6 @@ reset:
 	    while ! docker-compose exec scylla curl --fail http://localhost:10000/storage_service/native_transport > /dev/null 2>&1; \
         do sleep 1; \
         done; \
-	    echo  ✔ ready; \
+	    echo " ✔ ready"; \
 	    migrations/migrate.sh; \
 	}
