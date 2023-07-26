@@ -1,7 +1,8 @@
 use crate::db::models::{Candle, Trade};
 use crate::db::queries;
 use crate::Opt;
-use barter_data::exchange::binance::spot::BinanceSpot;
+
+use barter_data::exchange::binance::futures::BinanceFuturesUsd;
 use barter_data::streams::Streams;
 use barter_data::subscription::trade::PublicTrades;
 use barter_integration::model::instrument::kind::InstrumentKind;
@@ -21,118 +22,118 @@ pub async fn subscribe(opt: Opt, session: &Arc<Session>) {
 
     let builder = Streams::<PublicTrades>::builder()
         .subscribe([(
-            BinanceSpot::default(),
+            BinanceFuturesUsd::default(),
             "btc",
             "usdt",
-            InstrumentKind::Spot,
+            InstrumentKind::Perpetual,
             PublicTrades,
         )])
         // Separate WebSocket connection for ETH_USDT stream since it's very high volume
         .subscribe([(
-            BinanceSpot::default(),
+            BinanceFuturesUsd::default(),
             "eth",
             "usdt",
-            InstrumentKind::Spot,
+            InstrumentKind::Perpetual,
             PublicTrades,
         )])
         // Lower volume Instruments can share a WebSocket connection
         .subscribe([
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "xrp",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "bnb",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "doge",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "ada",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "sol",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "trx",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "dot",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "matic",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "ltc",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "shib",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "uni",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "avax",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "link",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
             (
-                BinanceSpot::default(),
+                BinanceFuturesUsd::default(),
                 "xmr",
                 "usdt",
-                InstrumentKind::Spot,
+                InstrumentKind::Perpetual,
                 PublicTrades,
             ),
         ]);

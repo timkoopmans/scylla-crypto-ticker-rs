@@ -21,7 +21,7 @@ pub async fn data(
     symbol: String,
     session: &State<Arc<Session>>,
 ) -> Result<Json<Vec<Candle>>, status::Custom<String>> {
-    let cql_query = Query::new(format!("SELECT * FROM orders.candles WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT' LIMIT 300;", symbol));
+    let cql_query = Query::new(format!("SELECT * FROM orders.candles WHERE exchange = 'binance_futures_usd' AND base = '{}' AND quote = 'USDT' LIMIT 300;", symbol));
 
     let rows = session
         .query(cql_query, ())
@@ -43,7 +43,7 @@ pub async fn data_duration(
 ) -> Result<Json<Vec<Candle>>, status::Custom<String>> {
     let time_bucket_from = util::parser::time_bucket_from(duration).unwrap();
     info!("time_bucket_from: {}", time_bucket_from);
-    let cql_query = Query::new(format!("SELECT * FROM orders.candles WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT' AND time_bucket >= {};", symbol, time_bucket_from));
+    let cql_query = Query::new(format!("SELECT * FROM orders.candles WHERE exchange = 'binance_futures_usd' AND base = '{}' AND quote = 'USDT' AND time_bucket >= {};", symbol, time_bucket_from));
 
     let rows = session
         .query(cql_query, ())
@@ -62,7 +62,7 @@ pub async fn trades(
     symbol: String,
     session: &State<Arc<Session>>,
 ) -> Result<Json<Vec<Trade>>, status::Custom<String>> {
-    let cql_query = Query::new(format!("SELECT * FROM orders.trades WHERE exchange = 'binance_spot' AND base = '{}' AND quote = 'USDT';", symbol));
+    let cql_query = Query::new(format!("SELECT * FROM orders.trades WHERE exchange = 'binance_futures_usd' AND base = '{}' AND quote = 'USDT';", symbol));
 
     let rows = session
         .query(cql_query, ())
