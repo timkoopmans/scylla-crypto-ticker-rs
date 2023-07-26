@@ -13,20 +13,12 @@ To run the demo, first bring up the database:
 
     docker-compose up --detach scylla
 
-Then migrate the database schema:
-
-    while ! docker-compose exec scylla curl --fail http://localhost:10000/storage_service/native_transport > /dev/null 2>&1;
-    do sleep 1; 
-    done; 
-    ./migrations/migrate.sh;
-
 Then run the demo application:
 
     docker-compose pull ticker
-    docker-compose up --no-build --detach ticker
+    docker-compose up --no-build ticker
 
 You should then be able to view the demo at http://localhost:8000/index.html
-
 
 ## Development
 

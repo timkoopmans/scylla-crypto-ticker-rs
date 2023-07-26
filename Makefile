@@ -27,6 +27,10 @@ run:
 migrate:
 	migrations/migrate.sh
 
+apply:
+	cd infra
+	terraform apply
+
 reset:
 	docker-compose down --remove-orphans scylla
 	docker-compose up --detach --force-recreate scylla
