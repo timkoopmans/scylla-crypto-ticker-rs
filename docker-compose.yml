@@ -19,7 +19,6 @@ services:
     environment:
       - DATABASE_URL=scylla:9042
       - ROCKET_ADDRESS=0.0.0.0
-    restart: always
 
 volumes:
   scylla_data:

@@ -14,6 +14,7 @@ RUN cargo build --release --bin scylla-crypto-ticker
 
 FROM gcr.io/distroless/cc
 COPY --from=builder /app/target/release/scylla-crypto-ticker /usr/bin/scylla-crypto-ticker
+COPY --from=builder /app/migrations /app/migrations
 COPY --from=builder /app/public /app/public
 
 CMD ["scylla-crypto-ticker"]
