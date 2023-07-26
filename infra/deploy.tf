@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-west-2"
+  region = "ap-southeast-2"
 }
 
 resource "aws_ecs_cluster" "cluster" {
@@ -31,7 +31,7 @@ resource "aws_ecs_task_definition" "scylla" {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group" : "${aws_cloudwatch_log_group.scylla_log_group.name}",
-          "awslogs-region": "us-west-2",
+          "awslogs-region": "ap-southeast-2",
           "awslogs-stream-prefix": "ecs"
         }
       }
@@ -133,7 +133,7 @@ resource "aws_ecs_task_definition" "ticker" {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group" : "${aws_cloudwatch_log_group.ticker_log_group.name}",
-          "awslogs-region": "us-west-2",
+          "awslogs-region": "ap-southeast-2",
           "awslogs-stream-prefix": "ecs"
         }
       }
