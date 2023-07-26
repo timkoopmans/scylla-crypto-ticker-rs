@@ -47,19 +47,21 @@ body {
 
 #base > label {
     font-size: 16px;
+    padding: 20px;
 }
 
 #symbol {
     font-family: "GT America Mono", monospace;
     font-size: 20px;
+    padding: 5px;
 }
 
 .overlay {
     position: fixed;
-    top: 5%;
-    left: 0;
-    transform: translateY(-50%);
-    width: 100%;
+    top: 0;
+    right: 0;
+    /*transform: translateY(-50%);*/
+    width: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
