@@ -52,7 +52,7 @@ function fetchData(url) {
 }
 
 function updateData() {
-    fetchData(`http://localhost:8000/data/${symbol}/60s`)
+    fetchData(`/data/${symbol}/60s`)
         .then(formatData)
         .then(data => {
             candlestickSeries.setData(data);
@@ -81,7 +81,7 @@ function setupAutoRefresh() {
 }
 
 function updateLiveTrades(symbol) {
-    fetchData(`http://localhost:8000/trades/${symbol}`)
+    fetchData(`/trades/${symbol}`)
         .then(createTradeTable)
         .then(table => {
             const tradeContainer = document.getElementById('tradeContainer');
@@ -93,7 +93,7 @@ function updateLiveTrades(symbol) {
 
 function updateMetrics() {
     const currentTime = Date.now();
-    fetch('http://localhost:8000/metrics')
+    fetch('/metrics')
         .then(response => response.json())
         .then(data => {
             if (previousData) {
