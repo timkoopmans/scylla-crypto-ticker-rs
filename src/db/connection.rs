@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use scylla::{Session, SessionBuilder};
+use std::path::Path;
 use std::{env, fs};
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
@@ -15,7 +16,12 @@ pub async fn builder() -> Result<Session> {
         .build()
         .await?;
 
-    let migration_dir = "migrations/";
+    let migration_dir = if database_url.starts_with("127.0.0.1") {
+        Path::new("./migrations")
+    } else {
+        Path::new("/app/migrations")
+    };
+
     let files = fs::read_dir(migration_dir)
         .map_err(|e| anyhow!("Error reading migration directory: {}", e))?;
 
